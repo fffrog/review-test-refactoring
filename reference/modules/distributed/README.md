@@ -8,9 +8,9 @@ checkpoint, etc.
 
 ## Detection
 
-Exact membership in `test-list.txt` (authoritative); path pattern
-`test/distributed/**` as fallback for unlisted files (see
-`reference/routing.md`).
+Directory routing: everything under `test/distributed/**` belongs to this
+module (authoritative — see `reference/routing.md`). `test-list.txt` holds
+only files outside that directory; it is currently empty.
 
 ## Knowledge
 

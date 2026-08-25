@@ -6,8 +6,10 @@ phases from another. All modules share only the common layer.
 
 ## Phase 0: Assess
 
-1. **Read the entire test file.** You are auditing every class and test
-   method, not a diff.
+1. **Read the target per review mode.** Whole-file (`test/**`): read the
+   entire file — you are auditing every class and test method, not a diff.
+   Diff-based (`torch/testing/**`): read the diff and the enclosing
+   class/function context.
 2. **Inventory the file.** Note each test class, its instantiation mechanism
    (`TestCase`, `@instantiate_parametrized_tests`,
    `instantiate_device_type_tests` call and its `only_for`/`except_for` args),
@@ -38,10 +40,10 @@ Then check this module's `pitfalls.md` for core-specific issues.
 
 ## Phase 3: Report
 
-Report findings grouped by severity (Blocker / Major / Minor) using the
-output format in `reference/common/review-checklist.md`. The routing report
-(module, detection method, loaded knowledge files) was already emitted
-before Phase 0 — keep the review itself in the standard format.
+Report findings using the output format in
+`reference/common/review-checklist.md`: the final report opens with the
+Routing & Knowledge Report (repeated there so the final output is
+self-contained), then Summary, Findings, Verified Correct.
 
 ## Module-Specific Rules
 

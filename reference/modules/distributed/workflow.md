@@ -6,8 +6,10 @@ phases from another. All modules share only the common layer.
 
 ## Phase 0: Assess
 
-1. **Read the entire test file.** You are auditing every class and test
-   method, not a diff.
+1. **Read the target per review mode.** Whole-file (`test/**`): read the
+   entire file — you are auditing every class and test method, not a diff.
+   Diff-based (`torch/testing/**`): read the diff and the enclosing
+   class/function context.
 2. **Inventory the file.** Note each test class, its instantiation mechanism,
    `hw_classification` tag, and — specific to this module — how the test
    launches: `MultiProcessTestCase`, `spawn`/`launch` helpers, subprocess
@@ -38,15 +40,19 @@ Then check this module's `pitfalls.md` for distributed-specific issues.
 
 ## Phase 3: Report
 
-Report findings grouped by severity (Blocker / Major / Minor) using the
-output format in `reference/common/review-checklist.md`. The routing report
-(module, detection method, loaded knowledge files) was already emitted
-before Phase 0 — keep the review itself in the standard format.
+Report findings using the output format in
+`reference/common/review-checklist.md`: the final report opens with the
+Routing & Knowledge Report (repeated there so the final output is
+self-contained), then Summary, Findings, Verified Correct.
 
 ## Module-Specific Rules
 
-[Add rules specific to `test/distributed/**` files as they emerge from
-review practice.]
+- **Assume standard backend setup; do not flag corner cases.** Backends
+  dynamically register into `dist.Backend.default_device_backend_map` at
+  load time, so direct lookups like `default_device_backend_map[acc.type]`
+  are the standard pattern and not a finding. Review against the standard,
+  registered path — hypothetical unregistered-backend failures are out of
+  scope.
 
 ## Review Constraints
 

@@ -67,6 +67,32 @@ What decorators?
 device-agnostic classes — device instantiation already scopes to the right
 devices. REMOVE them.
 
+## CUDA Capability Constants
+
+Constants like `SM80OrLater` (compute-capability gates from
+`torch.testing._internal.common_cuda`) are capability checks, not
+device-specific APIs. They do **not** make a test S3, and removing them
+wholesale is **not** required. Two valid treatments:
+
+1. **Generalize to a capability.** Where the check can be expressed with a
+   generic equivalent (e.g. a `torch.accelerator` capability query), convert
+   it and keep the test in an S2 class.
+2. **Keep it as a targeted skip.** Leave the constant in place and use it
+   in a device-type-aware skip so only the CUDA variants lacking the
+   capability are skipped — the test stays S2 and non-CUDA accelerators are
+   unaffected:
+
+   ```python
+   @onlyAccelerator
+   @skipCUDAIf(not SM80OrLater, "requires SM80+")
+   def test_foo(self, device):
+       ...
+   ```
+
+Never silently delete the check — the test would then run on hardware that
+cannot support it. And never demote the whole test to S3 just because a
+capability constant appears in it.
+
 ## False-CUDA Patterns (→ S2, NOT S3)
 
 These almost always indicate S2:

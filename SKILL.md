@@ -1,13 +1,15 @@
 ---
-name: test-refactoring
+name: review-test-refactoring
 description: >
   Review PyTorch test files for correctness against cross-accelerator
   decoupling standards, routing each file through a module-specific review
   workflow (core, distributed, graph) backed by layered knowledge: shared
   common standards plus per-module rules. Review-only — this skill audits and
-  reports findings, it never modifies test code. Use when asked to review,
-  audit, or quality-check a PyTorch test file (test/** or torch/testing/**),
-  to verify a test decoupling or refactoring change, to check S1/S2/S3
+  reports findings, it never modifies test code. Test files under test/**
+  require whole-file audit; testing-infrastructure files under
+  torch/testing/** may be audited by diff. Use when asked to review, audit,
+  or quality-check a PyTorch test file (test/** or torch/testing/**), to
+  verify a test decoupling or refactoring change, to check S1/S2/S3
   classification correctness, or when the user opens a Python test file and
   asks for a quality check.
 ---
@@ -25,8 +27,14 @@ per-module layer.
 
 Every request follows the same five steps:
 
-1. **Identify the target.** Confirm the target is a PyTorch test file
-   (`test/**` or `torch/testing/**`). Anything else is out of scope.
+1. **Identify the target and review mode.** Confirm the target is a PyTorch
+   test file (`test/**` or `torch/testing/**`). Anything else is out of
+   scope. The review mode is determined by the target's location:
+
+   | Location | Review Mode |
+   |----------|-------------|
+   | `test/**` | **Whole-file (mandatory)** — audit every class and test method in the complete file, never just a diff |
+   | `torch/testing/**` | **Diff-based (allowed)** — when the input is a PR or diff, auditing the changed hunks (with enclosing class/function context) is sufficient; for a bare file path, audit the complete file |
 
 2. **Classify the file into a module.** This decides which review workflow
    and which module knowledge base apply. Authoritative rules:
@@ -34,15 +42,18 @@ Every request follows the same five steps:
 
    | Module | Detection | Knowledge |
    |--------|-----------|-----------|
-   | `distributed` | path in `reference/modules/distributed/test-list.txt` | `reference/modules/distributed/` |
-   | `graph` | path in `reference/modules/graph/test-list.txt` | `reference/modules/graph/` |
-   | `core` | default — any test file not listed above | `reference/modules/core/` |
+   | `distributed` | directory `test/distributed/**` (authoritative) | `reference/modules/distributed/` |
+   | `graph` | graph directories (full list in `reference/routing.md`) or path in `reference/modules/graph/test-list.txt` | `reference/modules/graph/` |
+   | `core` | default — any test file not claimed above | `reference/modules/core/` |
 
-   - Exact membership in a `test-list.txt` is authoritative.
-   - A path in multiple lists is a routing conflict — resolve per
-     `reference/routing.md` (most specific module wins).
-   - Unlisted files may be routed by path-pattern fallback, but confirm a
-     non-default route with the user and record it in the list.
+   - Directory routing is authoritative: a file under a module's directory
+     belongs to that module, so directory contents are never enumerated in
+     a `test-list.txt`.
+   - A `test-list.txt` records only files no directory covers: top-level
+     files (e.g. `test/test_jit*.py`) and explicit exceptions.
+   - A path claimed by both a directory and a list entry is a routing
+     conflict — resolve per `reference/routing.md` (most specific module
+     wins).
    - For a batch of files, classify each independently, then process module
      by module.
 
@@ -62,7 +73,8 @@ Every request follows the same five steps:
    ```text
    ## Routing & Knowledge Report
    - Target: <file path>
-   - Module: <core | distributed | graph> (detection: <test-list.txt match | path-pattern fallback | default>)
+   - Review mode: <whole-file | diff-based>
+   - Module: <core | distributed | graph> (detection: <directory match | test-list.txt match | default>)
    - Knowledge loaded:
      - reference/common/test-classification-standards.md
      - reference/common/device-api-categories.yaml
@@ -76,8 +88,11 @@ Every request follows the same five steps:
    ```
 
    This report is mandatory output for every run — it is how the routing and
-   knowledge selection are evaluated for correctness. If the user corrects
-   the routing, go back to step 2 with the corrected module.
+   knowledge selection are evaluated for correctness. The same report also
+   heads the final review output (see the output format in
+   `reference/common/review-checklist.md`) so the final report is
+   self-contained. If the user corrects the routing, go back to step 2 with
+   the corrected module.
 
 5. **Follow the module review workflow.** Run the phases in the routed
    module's `workflow.md`: assess → analyze → review → report. The common
@@ -106,6 +121,22 @@ Layer rules:
 - **Routing comes before knowledge.** If a file cannot be routed, stop and
   ask — do not guess a module (see `reference/routing.md`).
 
+## Updating This Skill
+
+Rules for anyone changing this skill's content (including Claude):
+
+- **English only.** Every file in this skill is written in English,
+  whatever the language of the request that triggered the update.
+- **Distill the input.** Rework requested content into the skill's own
+  terminology and structure before writing it — never paste user input
+  verbatim.
+- **Keep it readable.** Structure rules as short sections, tables, and
+  concrete examples. A rule that is hard to read will not be applied.
+
+Placement follows the layered structure: rules applying to more than one
+module go in `reference/common/`; module-specific rules go in that module's
+layer (see Layer rules above).
+
 ## Directory Layout
 
 ```
@@ -128,12 +159,12 @@ test-refactoring/
         │   ├── README.md
         │   ├── workflow.md        # distributed review workflow (complete, standalone)
         │   ├── pitfalls.md
-        │   └── test-list.txt      # module membership (authoritative)
+        │   └── test-list.txt      # files outside test/distributed/** (exceptions)
         └── graph/
             ├── README.md
             ├── workflow.md        # graph review workflow (complete, standalone)
             ├── pitfalls.md
-            └── test-list.txt      # module membership (authoritative)
+            └── test-list.txt      # top-level files and exceptions outside the graph directories
 ```
 
 ## Content Status

@@ -1,9 +1,17 @@
 # Review Checklist
 
-The whole-file review checklist applied by every module's review workflow
+The review checklist applied by every module's review workflow
 (`reference/modules/<module>/workflow.md`). Checks every class and test method
 in a test file against `reference/common/test-classification-standards.md`.
-This skill reviews whole files only — there is no diff mode.
+
+Review modes are determined by the target's location (see SKILL.md):
+
+- **Whole-file** (`test/**`, mandatory): apply every check below to every
+  class and test method in the complete file — never just a diff.
+- **Diff-based** (`torch/testing/**`, allowed when the input is a PR or
+  diff): apply the checks to the changed hunks. Class-level checks (naming,
+  instantiation mechanism, `hw_classification`, import cleanliness) are
+  verified in the enclosing class/function context even in diff mode.
 
 Every API classification decision must be grounded in
 `reference/common/device-api-categories.yaml` (lookup procedure:
@@ -57,6 +65,7 @@ or B, the test is misclassified — it should be Strategy 2 with
 | `torch.cuda.<api>` call where the catalog shows `torch.accelerator.<api>` exists | Category A — has cross-accelerator equivalent; replace with `torch.accelerator.*` | Major |
 | `torch.cuda.Stream` / `torch.cuda.Event` used but test not marked as Strategy 3 | Category B — general concept; verify usage context, usually Strategy 2 | Info |
 | `TEST_CUDA` import remains but no Strategy 3 CUDA tests exist in the file | Stale import keeps file classified as device_specific | Major |
+| `SM80OrLater` (or similar capability constants) used in a `@skipCUDAIf` guard | Capability gate, not a device API — keep or generalize; not a false-CUDA signal | Info |
 
 **Unnecessary `@onlyAccelerator`**: If `@onlyAccelerator` was ADDED to a test
 that had no prior device restriction, verify the test genuinely requires an
@@ -259,6 +268,7 @@ dependency level (e.g., a test using only CPU ops should not be in a
 | No test logic unintentionally modified | Flag tests that appear incomplete or have empty bodies |
 | No duplicate test bodies across device-specific classes | If identical test bodies appear across S3 classes, they belong in the S2 shared class |
 | No device-specific artifacts in S2 classes | Scan for `_cuda` suffix in test method names, internal variable names like `cuda_out`, module-level helpers with `if device_type == "<backend>"` branches — clean these when the test is in an S2 class |
+| No test lost in the change | Diff-based review: verify every original test method is accounted for (count `def test_` in old vs new). A test "lost" in refactoring is a regression. |
 
 ## 7. Common Pitfalls
 
@@ -276,6 +286,7 @@ dependency level (e.g., a test using only CPU ops should not be in a
 | `@onlyAccelerator` used without dtype compatibility check | Test runs on MPS/XPU but uses `complex128` or `float64` (unsupported on MPS). For every test using `@onlyAccelerator`, verify every dtype the test uses is supported on ALL target backends. If not, add `@expectedFailureMPS`, `@dtypesIfMPS`, or a skip decorator. | Blocker |
 | Test class name doesn't match OpInfo DecorateInfo references | `DecorateInfo` entries in `common_methods_invocations.py` use exact class name matching in `is_active()`. If the test class was RENAMED, verify DecorateInfo entries were updated (section 2a). If the author kept the original name, this check is a no-op. | Blocker |
 | **Flagging an original class name as "wrong" when the author chose not to rename** | Renaming is optional. If the author kept the original name (e.g., `TestFoo` for an S2 class), do NOT flag it unless the name is actively misleading (e.g., a CPU-only class named `TestFooCUDA`). The `hw_classification` member handles classification. | N/A — reviewer guidance |
+| `SM80OrLater` (or similar capability constants) flagged for removal or silently deleted | Capability gates are kept as targeted skips (`@skipCUDAIf(not SM80OrLater, ...)`) or generalized — never silently dropped, and they do not make a test S3 (standards: CUDA Capability Constants) | N/A — reviewer guidance |
 | `@unittest.skipIf(not TEST_CUDA, ...)` leftover in S2 class | Should be `@onlyAccelerator` | Major |
 | `@skipIfMPS`/`@skipXPU`/`@skipCUDAIf` applied to method without `device` parameter | These decorators check the `device` kwarg and silently fail if missing | Blocker |
 | Missing `hw_classification` class attribute | Every test class must have `hw_classification = HardwareClassification.XXX`. Missing attr causes test runner to skip or misroute tests. | Blocker |
@@ -329,8 +340,23 @@ Structure your review as follows:
 ```
 ## Review: <test file path>
 
+### Routing & Knowledge Report
+- Target: <file path>
+- Review mode: <whole-file | diff-based>
+- Module: <core | distributed | graph> (detection: <directory match | test-list.txt match | default>)
+- Knowledge loaded:
+  - reference/common/test-classification-standards.md
+  - reference/common/device-api-categories.yaml
+  - reference/common/api-classification-guide.md
+  - reference/common/backend-differences.md
+  - reference/common/review-checklist.md
+  - reference/modules/<module>/README.md
+  - reference/modules/<module>/workflow.md
+  - reference/modules/<module>/pitfalls.md
+- Workflow phases: assess, analyze, review, report
+
 ### Summary
-- Mode: whole-file
+- Mode: whole-file / diff-based
 - File(s) reviewed: 1
 - Classification: correct / N issues found
 - Naming: correct / N issues found
@@ -339,16 +365,18 @@ Structure your review as follows:
 
 ### Findings
 
-#### Blockers (must fix)
-- [ ] **<file:line>**: <issue description>
-  - Fix: <suggested fix>
-
-#### Major (should fix)
-- [ ] **<file:line>**: <issue description>
-
-#### Minor (nice to have)
-- [ ] **<file:line>**: <issue description>
+- **Blockers (must fix)**
+  - [ ] **<file:line>**: <issue description>
+    - Fix: <suggested fix>
+- **Major (should fix)**
+  - [ ] **<file:line>**: <issue description>
+- **Minor (nice to have)**
+  - [ ] **<file:line>**: <issue description>
 
 ### Verified Correct
 - <list of things that are correct per the standards>
 ```
+
+The Routing & Knowledge Report heads the final output so the whole review
+is self-contained — the mid-process copy emitted before Phase 0 is for
+early routing evaluation; the final one is part of the deliverable.

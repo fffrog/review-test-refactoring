@@ -4,8 +4,8 @@
 
 Graph-mode / compiler tests: `test/jit/**`, `test/fx/**`, `test/dynamo/**`,
 `test/inductor/**`, `test/export/**`, `test/onnx/**`, `test/functorch/**`,
-`test/higher_order_ops/**`, `test/lazy/**`, `test/cpp/**` and related
-top-level `test/test_*_jit*.py` files.
+`test/higher_order_ops/**`, `test/lazy/**`, `test/cpp/**`,
+`test/cpython/**` and related top-level `test/test_*_jit*.py` files.
 
 Note: this bucket is deliberately broad for now. If a sub-area grows its own
 workflow or rules, split it into its own module (see "Adding a Module" in
@@ -13,8 +13,10 @@ workflow or rules, split it into its own module (see "Adding a Module" in
 
 ## Detection
 
-Exact membership in `test-list.txt` (authoritative); path patterns above as
-fallback for unlisted files (see `reference/routing.md`).
+Directory routing: everything under the graph directories listed above
+belongs to this module (authoritative — see `reference/routing.md`).
+`test-list.txt` additionally holds top-level files (`test/test_*jit*.py`,
+`test/test_fx*.py`, ...) outside those directories.
 
 ## Knowledge
 
