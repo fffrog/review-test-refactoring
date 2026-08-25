@@ -16,9 +16,9 @@ inherits phases from another. All modules share only the common layer.
 
 ## Phase 1: Analyze
 
-1. Read `reference/common/decoupling-standards.md` — the S1/S2/S3
+1. Read `reference/common/test-classification-standards.md` — the S1/S2/S3
    classification hierarchy, decision tree, and strategy patterns.
-2. Read `reference/common/classification-guide.md` — how to look up APIs in
+2. Read `reference/common/api-classification-guide.md` — how to look up APIs in
    the catalog.
 3. For every test, classify its **actual** device dependency:
    - Many graph tests are compile-focused (tracing, graph transforms, code

@@ -64,10 +64,10 @@ Every request follows the same five steps:
    - Target: <file path>
    - Module: <core | distributed | graph> (detection: <test-list.txt match | path-pattern fallback | default>)
    - Knowledge loaded:
-     - reference/common/decoupling-standards.md
-     - reference/common/device-api-catalog.yaml
-     - reference/common/classification-guide.md
-     - reference/common/device-features.md
+     - reference/common/test-classification-standards.md
+     - reference/common/device-api-categories.yaml
+     - reference/common/api-classification-guide.md
+     - reference/common/backend-differences.md
      - reference/common/review-checklist.md
      - reference/modules/<module>/README.md
      - reference/modules/<module>/workflow.md
@@ -114,10 +114,10 @@ test-refactoring/
 └── reference/
     ├── routing.md                 # authoritative file -> module routing rules
     ├── common/                    # layer 1: shared knowledge, all modules
-    │   ├── decoupling-standards.md
-    │   ├── device-api-catalog.yaml
-    │   ├── classification-guide.md
-    │   ├── device-features.md
+    │   ├── test-classification-standards.md
+    │   ├── device-api-categories.yaml
+    │   ├── api-classification-guide.md
+    │   ├── backend-differences.md
     │   └── review-checklist.md
     └── modules/                   # layer 2: per-module knowledge (parallel)
         ├── core/
@@ -146,7 +146,7 @@ test-refactoring/
 - **Normalized during migration**: Category B semantics were conflicting in
   the sources (catalog header said Strategy 3, standards said Strategy 2).
   The filled content follows the standards: B is S2 in strategy, with
-  call-site guidance. See `reference/common/classification-guide.md`.
+  call-site guidance. See `reference/common/api-classification-guide.md`.
 - **Accumulating**: module-specific rules and pitfalls grow from review
   practice; each module file has an open section for them.
 

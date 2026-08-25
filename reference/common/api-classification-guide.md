@@ -1,11 +1,13 @@
 # API Classification Guide
 
 How to classify device API calls during review. Shared by all modules.
+This file owns the A/B/C category semantics; the lookup procedure below is
+applied to the data in `reference/common/device-api-categories.yaml`.
 
 **Primary references:**
-- `reference/common/device-api-catalog.yaml` — machine-readable catalog, the single source of truth
-- `reference/common/device-features.md` — human-readable summary of the same data
-- `reference/common/decoupling-standards.md` — the strategy framework this feeds
+- `reference/common/device-api-categories.yaml` — machine-readable data, the single source of truth
+- `reference/common/backend-differences.md` — per-backend feature facts
+- `reference/common/test-classification-standards.md` — the S1/S2/S3 strategy framework this feeds
 
 ## Classification Hierarchy
 
@@ -28,12 +30,12 @@ only — check the catalog's Category C list.
 | **C** | Truly device-specific | S3 | Keep as-is; the test stays on that device |
 
 **Category B reconciliation:** the header comment in
-`device-api-catalog.yaml` ("category_b → Strategy 3: keep device-specific")
+`device-api-categories.yaml` ("category_b → Strategy 3: keep device-specific")
 predates the current standards. The authoritative rule — per
-`decoupling-standards.md` and the review checklist — is that B is S2 in
-*strategy* (the concept is cross-backend) while the *call site* stays on the
-device module (no wrapper exists to replace it with). When the two disagree,
-follow this guide, not the YAML header comment.
+`test-classification-standards.md` and the review checklist — is that B is S2
+in *strategy* (the concept is cross-backend) while the *call site* stays on
+the device module (no wrapper exists to replace it with). When the two
+disagree, follow this guide, not the YAML header comment.
 
 ## Lookup Rules
 
@@ -47,9 +49,9 @@ follow this guide, not the YAML header comment.
 
 ### Decision rules
 
-- **Blacklist skips** (`@skipXPU`, `@skipCUDAIf`, `@skipMPS`, `@skipMeta`): NEVER remove
-- **`@onlyNativeDeviceTypes` / `@onlyNativeDeviceTypesAnd`**: redundant on device-agnostic classes — REMOVE (device instantiation already scopes to the right devices)
-- **Whitelist** (`@onlyCUDA`, `@onlyOn`): Enlarge to `@onlyAccelerator` IF only Cat A/B APIs used
+API-call actions only; decorator-level rules live in
+`test-classification-standards.md` (Blacklist vs. Whitelist Decorators).
+
 - **Cat A same name**: Drop-in replace `torch.{device}` → `torch.accelerator`
 - **Cat A name differs**: Use correct accelerator name (see `name_differs` section)
 - **Cat B**: No accelerator replacement exists — use the unified type where available, otherwise keep the device-module call (the test itself is S2)

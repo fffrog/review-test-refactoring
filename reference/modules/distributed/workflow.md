@@ -16,13 +16,13 @@ phases from another. All modules share only the common layer.
 
 ## Phase 1: Analyze
 
-1. Read `reference/common/decoupling-standards.md` — the S1/S2/S3
+1. Read `reference/common/test-classification-standards.md` — the S1/S2/S3
    classification hierarchy, decision tree, and strategy patterns.
-2. Read `reference/common/classification-guide.md` — how to look up APIs in
+2. Read `reference/common/api-classification-guide.md` — how to look up APIs in
    the catalog.
 3. For every test, classify its **actual** device dependency:
    - Collective/backend APIs (NCCL, GLOO, UCC, process-group internals) are
-     Category C in `reference/common/device-api-catalog.yaml` → those tests
+     Category C in `reference/common/device-api-categories.yaml` → those tests
      are S3 by default. This makes S3 more common here than in core.
    - Multi-process and multi-GPU requirements (rank count, world size) are
      capability gates beyond device type — treat them separately from the

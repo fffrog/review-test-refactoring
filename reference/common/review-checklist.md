@@ -2,12 +2,12 @@
 
 The whole-file review checklist applied by every module's review workflow
 (`reference/modules/<module>/workflow.md`). Checks every class and test method
-in a test file against `reference/common/decoupling-standards.md`. This skill
-reviews whole files only — there is no diff mode.
+in a test file against `reference/common/test-classification-standards.md`.
+This skill reviews whole files only — there is no diff mode.
 
 Every API classification decision must be grounded in
-`reference/common/device-api-catalog.yaml` (lookup procedure:
-`reference/common/classification-guide.md`) — never rely on memory or
+`reference/common/device-api-categories.yaml` (lookup procedure:
+`reference/common/api-classification-guide.md`) — never rely on memory or
 heuristics.
 
 | Category | Description | Strategy Implication |
@@ -44,7 +44,7 @@ For every test classified as Strategy 3 (`TestFooCUDA`) or using
 > catalog), or is it just using CUDA as a device for generic computation?
 
 **How to check**: Look up each `torch.cuda.*` API the test uses in
-`reference/common/device-api-catalog.yaml`. If every API it uses is Category A
+`reference/common/device-api-categories.yaml`. If every API it uses is Category A
 or B, the test is misclassified — it should be Strategy 2 with
 `@onlyAccelerator`.
 
@@ -66,7 +66,7 @@ entirely.
 ### 1b. Over-Generalization Detection
 
 Conversely, check that tests using Category C APIs were NOT incorrectly
-generalized to Strategy 2. Consult `reference/common/device-api-catalog.yaml`
+generalized to Strategy 2. Consult `reference/common/device-api-categories.yaml`
 → `category_c` for the full per-backend lists. Key examples:
 
 | Code Pattern | What It Means | Severity |
@@ -77,21 +77,14 @@ generalized to Strategy 2. Consult `reference/common/device-api-catalog.yaml`
 
 **Dtype compatibility on MPS**: Even when a test uses only generic ops (no
 Category C APIs), it may still fail on non-CUDA accelerators if it uses dtypes
-not supported by that backend. The most common case: `complex128` and `float64`
-are unsupported on MPS. When a test is generalized to Strategy 2 (or already
-uses `@onlyAccelerator`):
-
-| Check | How to Verify |
-|-------|---------------|
-| `complex128` or `torch.complex128` used in `@dtypes` or as default dtype | MPS does not support double-precision complex. Add `@expectedFailureMPS` or use `@dtypesIfMPS` to exclude `complex128`. |
-| `float64` or `torch.float64` used in `@dtypes` or as default dtype | MPS does not support float64. Add `@expectedFailureMPS` or use `@dtypesIfMPS` to exclude `float64`. |
-| `torch.long` used with MPS convolution/indexing ops | MPS has limited int64 support in some ops. Add a skip (`@skipIfMPS`) if needed. |
+not supported by that backend. The unsupported-dtype facts live in
+`reference/common/backend-differences.md` (Dtype Support).
 
 **How to validate**: For every test using `@onlyAccelerator` or the `device`
 parameter, verify every dtype it exercises (from `@dtypes`, `_default_dtype`, or
-inline tensor creation) against known MPS dtype limitations. The failure
-signature is: `"Cannot convert a MPS Tensor to float64 dtype"` or similar dtype
-conversion errors on MPS.
+inline tensor creation) against that table. Where a dtype is unsupported,
+check that the test carries `@expectedFailureMPS`, `@dtypesIfMPS`, or
+`@skipIfMPS` as appropriate.
 
 **MPS coverage safety**: When MPS coverage is broadened (new `allow_mps=True`
 or `@onlyAccelerator` replacing CUDA-only restriction), verify `@skipIfMPS` is
@@ -121,7 +114,7 @@ For tests in a Strategy 1 class (`TestFoo` without device suffix):
 Class renaming is **OPTIONAL**. The `hw_classification` member on TestCase
 handles strategy classification; class names are no longer the primary
 discriminator. The refactoring author decides whether to rename based on
-external reference impact (see `reference/common/decoupling-standards.md` for
+external reference impact (see `reference/common/test-classification-standards.md` for
 the decision framework).
 
 **Do NOT flag a class name mismatch as an issue unless it is actively
@@ -195,13 +188,10 @@ should run.
 
 ## 3. Instantiation Mechanism
 
-| Strategy | Expected Mechanism | Wrong Mechanism |
-|----------|-------------------|-----------------|
-| Strategy 1, no parametrization | Plain `TestCase` | `instantiate_device_type_tests` |
-| Strategy 1, with `@parametrize`/`@dtypes` | `@instantiate_parametrized_tests` | `instantiate_device_type_tests` |
-| Strategy 1, with `@ops` | `instantiate_device_type_tests(..., only_for="cpu")` | `@instantiate_parametrized_tests` |
-| Strategy 2 | `instantiate_device_type_tests(TestFooDevice, globals())` | `@instantiate_parametrized_tests` |
-| Strategy 3 | `instantiate_device_type_tests(..., only_for="<device>")` | Plain `TestCase` with `setUp` guard or `@instantiate_parametrized_tests` |
+Each class must use the mechanism its strategy prescribes. The full
+mechanism-per-strategy mapping (including wrong mechanisms) is in
+`reference/common/test-classification-standards.md` (Instantiation Mechanism
+Comparison); the two critical checks:
 
 **Critical**: Check that `instantiate_device_type_tests` is never used for
 CPU-only (Strategy 1) classes — it creates useless per-device variants.
@@ -214,7 +204,7 @@ collisions.
 
 For Strategy 2 tests, verify device-specific APIs were replaced with their
 device-agnostic equivalents. **Consult
-`reference/common/device-api-catalog.yaml` → `category_a` for the authoritative
+`reference/common/device-api-categories.yaml` → `category_a` for the authoritative
 mapping.** The catalog defines every `torch.<device>.<api>` →
 `torch.accelerator.<api>` replacement.
 
@@ -236,7 +226,7 @@ Category C, the test belongs in Strategy 3.
 `torch.accelerator.*` replacements, especially HIGH RISK APIs:
 `current_device_index` (returns `int`, compare against `int`),
 `set_device_index` (takes `int` arg), `get_device_capability` (return type
-differs across backends). Consult `reference/common/device-api-catalog.yaml`
+differs across backends). Consult `reference/common/device-api-categories.yaml`
 type annotations.
 
 **Remaining `torch.cuda` in S2 classes**: Scan each S2 class for remaining
@@ -316,7 +306,7 @@ def test_foo(self, device, dtype):  # incorrect
 
 Every test class must have a `hw_classification` class attribute matching its
 strategy and instantiation mechanism (see the mapping in
-`reference/common/decoupling-standards.md`). **This is mandatory** — the test
+`reference/common/test-classification-standards.md`). **This is mandatory** — the test
 runner uses `--hw-classification` to filter test execution by hardware
 category.
 

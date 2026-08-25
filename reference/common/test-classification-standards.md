@@ -1,11 +1,15 @@
-# Test Decoupling Standards
+# Test Classification Standards
 
-The authoritative decoupling standards that `reference/common/review-checklist.md`
-checks test files against. The device API catalog
-(`reference/common/device-api-catalog.yaml`) is the single source of truth for
-API classification; this file defines the decision framework around it.
+The normative standard for how PyTorch tests are classified into S1/S2/S3 and
+what a correctly decoupled test file looks like. The review checklist
+(`reference/common/review-checklist.md`) audits test files against this file.
 Applies to every module; module-specific rules live in
 `reference/modules/<module>/`.
+
+**Boundary:**
+- API-level classification data: `reference/common/device-api-categories.yaml`
+- API lookup procedure and A/B/C semantics: `reference/common/api-classification-guide.md`
+- Per-backend feature facts: `reference/common/backend-differences.md`
 
 ## Classification
 
@@ -20,17 +24,14 @@ Every test falls into one of three strategies. Classification is hierarchical:
 
 ### Device API Categories
 
-| Category | Description | Strategy | Call Site |
-|----------|-------------|----------|-----------|
-| **A** — has `torch.accelerator` equivalent | `empty_cache`, `synchronize`, `CUDAGraph`, `memory_allocated`, `current_device` | S2 | Replace with `torch.accelerator.*` |
-| **B** — general concept, no accelerator wrapper | `Stream`, `Event`, `manual_seed`, `get_device_properties` | S2 | No `torch.accelerator.*` replacement exists — use the unified type where available (`torch.Stream`, `torch.Event`), otherwise keep the device-module call, guarded per `device_type` if needed |
-| **C** — truly device-specific | NCCL, NVTX, cuDNN, GDS, Jiterator, Metal shaders, SYCL handles | S3 | Must stay; the test stays on that device |
+| Category | Description | Strategy |
+|----------|-------------|----------|
+| **A** — has `torch.accelerator` equivalent | `empty_cache`, `synchronize`, `CUDAGraph`, `memory_allocated`, `current_device` | S2 |
+| **B** — general concept, no accelerator wrapper | `Stream`, `Event`, `manual_seed`, `get_device_properties` | S2 |
+| **C** — truly device-specific | NCCL, NVTX, cuDNN, GDS, Jiterator, Metal shaders, SYCL handles | S3 |
 
-Category B semantics: the *strategy* is S2 (the concept is cross-backend), but
-the *call site* cannot be replaced with `torch.accelerator.*` (no wrapper
-exists). Note the header comment in `device-api-catalog.yaml` ("category_b →
-Strategy 3") predates this reconciliation — the standards and checklist treat
-B as S2 with call-site guidance.
+Full semantics — call-site actions per category and the Category B
+reconciliation — live in `reference/common/api-classification-guide.md`.
 
 **Only Category C makes a test S3.** If you can replace `"cuda"` with `"mps"` or
 `"xpu"` and the test still makes logical sense, it's S2.
@@ -238,13 +239,13 @@ instantiate_device_type_tests(TestFoo, globals(), only_for="cuda")
 
 ## Instantiation Mechanism Comparison
 
-| Mechanism | Creates Device Variants? | Generic Class Discoverable? | hw_classification | Use When |
-|-----------|--------------------------|----------------------------|-------------------|----------|
-| Plain `TestCase` | No | Yes | `GENERIC` | No parametrization needed |
-| `instantiate_parametrized_tests()` | No | Yes | `GENERIC` | Tests with `@parametrize`/`@ops`/`@dtypes`, no device dependency |
-| `instantiate_device_type_tests(only_for="cpu")` | Yes (CPU only) | No (removed from scope) | `CPU` | S1 classes with `@ops` (OpInfo tests need device instantiation) |
-| `instantiate_device_type_tests()` | Yes (CPU, CUDA, MPS, …) | No (removed from scope) | `ACCELERATOR` | Tests with a `device` parameter, works on any accelerator |
-| `instantiate_device_type_tests(only_for="<device>")` | Yes (single device) | No (removed from scope) | `CUDA` / `MPS` / `XPU` | S3 classes — Category C APIs |
+| Mechanism | Creates Device Variants? | Generic Class Discoverable? | hw_classification | Use When | Wrong Mechanism |
+|-----------|--------------------------|----------------------------|-------------------|----------|-----------------|
+| Plain `TestCase` | No | Yes | `GENERIC` | No parametrization needed | `instantiate_device_type_tests` (useless per-device variants) |
+| `instantiate_parametrized_tests()` | No | Yes | `GENERIC` | Tests with `@parametrize`/`@ops`/`@dtypes`, no device dependency | `instantiate_device_type_tests` |
+| `instantiate_device_type_tests(only_for="cpu")` | Yes (CPU only) | No (removed from scope) | `CPU` | S1 classes with `@ops` (OpInfo tests need device instantiation) | `@instantiate_parametrized_tests` |
+| `instantiate_device_type_tests()` | Yes (CPU, CUDA, MPS, …) | No (removed from scope) | `ACCELERATOR` | Tests with a `device` parameter, works on any accelerator | `@instantiate_parametrized_tests` |
+| `instantiate_device_type_tests(only_for="<device>")` | Yes (single device) | No (removed from scope) | `CUDA` / `MPS` / `XPU` | S3 classes — Category C APIs | Plain `TestCase` with `setUp` guard, or `@instantiate_parametrized_tests` |
 
 ## HardwareClassification Tags
 
@@ -265,10 +266,3 @@ strategy and instantiation mechanism. The test runner uses
 - `GENERIC`: class NOT instantiated via `instantiate_device_type_tests`; methods take no `device`/`devices`.
 - `ACCELERATOR`: class instantiated via `instantiate_device_type_tests`; every method takes `device`/`devices`; no `@only*` except `@onlyAccelerator`; the instantiate call uses no `only_for`.
 - `CPU`/`CUDA`/`MPS`/`XPU`: class instantiated via `instantiate_device_type_tests` with `only_for=<device>`; every method takes `device`/`devices`; the instantiate call uses no `except_for`.
-
-## Related
-
-- API classification data: `reference/common/device-api-catalog.yaml`
-- API lookup procedure: `reference/common/classification-guide.md`
-- Per-backend feature differences: `reference/common/device-features.md`
-- Review procedure: `reference/common/review-checklist.md`

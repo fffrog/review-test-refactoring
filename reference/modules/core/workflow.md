@@ -17,13 +17,13 @@ phases from another. All modules share only the common layer.
 
 ## Phase 1: Analyze
 
-1. Read `reference/common/decoupling-standards.md` — the S1/S2/S3
+1. Read `reference/common/test-classification-standards.md` — the S1/S2/S3
    classification hierarchy, decision tree, and strategy patterns.
-2. Read `reference/common/classification-guide.md` — how to look up APIs in
+2. Read `reference/common/api-classification-guide.md` — how to look up APIs in
    the catalog.
 3. For every test, classify its **actual** device dependency:
    - Look up each device API the test uses in
-     `reference/common/device-api-catalog.yaml` (Category A/B/C).
+     `reference/common/device-api-categories.yaml` (Category A/B/C).
    - Compare against the class it lives in. Mismatches are the raw material
      for Phase 2: false-CUDA in S3 classes (checklist 1a), Category C APIs
      in S2 classes (checklist 1b), device usage in S1 classes (checklist 1c).
