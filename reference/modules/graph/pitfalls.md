@@ -30,4 +30,20 @@ checks) even though the module as a whole is compiler-centric. Do not
 over-classify to S2 just because a file lives in `test/dynamo/**` or
 `test/inductor/**` — classify each test on its own device usage.
 
+## Stream APIs Under Dynamo Tracing
+
+Do NOT apply the common unified-type rule to stream APIs inside
+dynamo-traced test cases. Dynamo treats the device-module stream APIs
+(`torch.cuda.stream`, `torch.cuda.Stream`, `torch.cuda.Event`) and the
+unified types (`torch.Stream`, `torch.Event`) as distinct operations, so a
+traced test keeps the original device-module calls — both forms need
+separate testing. The unification only applies outside dynamo tracing.
+
+## cpython Tests
+
+`test/cpython/**` tests are CPython's own tests patched for dynamo.
+`CPythonTestCase` carries the `GENERIC` tag at its base class, and the
+directory is exempt from per-class tagging — do not flag missing
+`hw_classification` attributes there.
+
 [Add more as they emerge from review practice.]

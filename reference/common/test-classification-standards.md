@@ -93,6 +93,42 @@ Never silently delete the check — the test would then run on hardware that
 cannot support it. And never demote the whole test to S3 just because a
 capability constant appears in it.
 
+## Refactoring Invariants
+
+Refactoring must preserve before/after behavior. These rules came out of
+reviewing the device-decoupling project (pytorch/projects/154):
+
+- **Preserve the original device scope.** The `instantiate_device_type_tests`
+  call must reproduce the original device set: keep `only_for` as it was,
+  and do not add `allow_xpu`/`allow_mps`/`except_for` without evidence the
+  tests pass on those devices. For individual tests that should not run on
+  CPU, use `@onlyAccelerator` on the method, not a class-level restriction.
+  This applies to the class-level instantiation; per-test decorators are
+  where broadening happens (see the decorator table below).
+- **Clean up aggressively, then skip the specifics.** Prefer removing
+  `@only*` restrictions outright. If CI then fails on specific devices, add
+  a device-type-aware skip for just those devices
+  (`skipIf(True, msg, device_type=["acc1", "acc2"])`). More coverage with
+  targeted skips beats a blanket restriction.
+- **S2 classes include CPU.** A `TestFooDevice` class is instantiated for
+  CPU as well as accelerators; `@onlyAccelerator` is a per-test decorator
+  for tests that genuinely cannot run on CPU (e.g. CPU-accelerator
+  interaction tests).
+- **Instantiation style.** Use a literal device list in the
+  `instantiate_device_type_tests` call — no module-level `only_for`
+  variable. Prefer `except_for` when excluding a minority of devices;
+  `only_for` is for narrow allowlists (S3 classes).
+- **Skip, don't xfail, for backend capability gaps.** An unsupported dtype
+  on a backend is a known gap, not an expected failure: use
+  `@dtypesIf<Device>` / `@skip<Device>If`, not xfail. Where a test mixes
+  dtypes (e.g. bfloat16 runs only on cpu/cuda), split the dtype-specific
+  part into its own test method.
+- **Prefer explicit per-device skip decorators over helper booleans.** A
+  helper like `if not flex_attention_supported_platform: skip` hides which
+  devices are skipped and silently skips PrivateUse1-based backends the
+  helper does not know. Write the skip condition per device so it stays
+  visible.
+
 ## False-CUDA Patterns (→ S2, NOT S3)
 
 These almost always indicate S2:

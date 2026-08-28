@@ -42,9 +42,8 @@ module.
 ## Phase 3: Report
 
 Report findings using the output format in
-`reference/common/review-checklist.md`: the final report opens with the
-Routing & Knowledge Report (repeated there so the final output is
-self-contained), then Summary, Findings, Verified Correct.
+`reference/common/review-checklist.md`: Summary (with the routing facts
+condensed into it), Findings, Verified Correct.
 
 ## Module-Specific Rules
 

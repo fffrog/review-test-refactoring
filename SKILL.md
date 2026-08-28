@@ -61,7 +61,7 @@ Every request follows the same five steps:
 
    - **Common layer (always):** `reference/common/` — decoupling standards
      (S1/S2/S3), device API catalog, classification guide, device feature
-     differences, review checklist.
+     differences, test infrastructure APIs, review checklist.
    - **Module layer (per routed module):** `reference/modules/<module>/` —
      module scope (`README.md`), module review workflow (`workflow.md`),
      module pitfalls (`pitfalls.md`).
@@ -80,6 +80,7 @@ Every request follows the same five steps:
      - reference/common/device-api-categories.yaml
      - reference/common/api-classification-guide.md
      - reference/common/backend-differences.md
+     - reference/common/test-infrastructure-apis.md
      - reference/common/review-checklist.md
      - reference/modules/<module>/README.md
      - reference/modules/<module>/workflow.md
@@ -88,11 +89,10 @@ Every request follows the same five steps:
    ```
 
    This report is mandatory output for every run — it is how the routing and
-   knowledge selection are evaluated for correctness. The same report also
-   heads the final review output (see the output format in
-   `reference/common/review-checklist.md`) so the final report is
-   self-contained. If the user corrects the routing, go back to step 2 with
-   the corrected module.
+   knowledge selection are evaluated for correctness. The final review
+   output condenses these routing facts into its Summary (see the output
+   format in `reference/common/review-checklist.md`). If the user corrects
+   the routing, go back to step 2 with the corrected module.
 
 5. **Follow the module review workflow.** Run the phases in the routed
    module's `workflow.md`: assess → analyze → review → report. The common
@@ -149,6 +149,7 @@ test-refactoring/
     │   ├── device-api-categories.yaml
     │   ├── api-classification-guide.md
     │   ├── backend-differences.md
+    │   ├── test-infrastructure-apis.md
     │   └── review-checklist.md
     └── modules/                   # layer 2: per-module knowledge (parallel)
         ├── core/
@@ -180,6 +181,10 @@ test-refactoring/
   call-site guidance. See `reference/common/api-classification-guide.md`.
 - **Accumulating**: module-specific rules and pitfalls grow from review
   practice; each module file has an open section for them.
+- **Enriched from review practice**: rules distilled from the reviews of
+  the device-decoupling project (pytorch/projects/154, Done column) —
+  refactoring invariants, test infrastructure APIs, and per-module
+  pitfalls.
 
 ## Related
 

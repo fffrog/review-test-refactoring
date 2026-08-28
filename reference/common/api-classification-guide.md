@@ -37,6 +37,23 @@ in *strategy* (the concept is cross-backend) while the *call site* stays on
 the device module (no wrapper exists to replace it with). When the two
 disagree, follow this guide, not the YAML header comment.
 
+## Unified Stream and Event Types
+
+Stream/event APIs (Category B) have unified replacements on the base
+`torch` namespace:
+
+| Device-module API | Unified replacement |
+|-------------------|---------------------|
+| `torch.cuda.stream` / `torch.xpu.stream` | `torch.Stream` |
+| `torch.cuda.Stream` / `torch.xpu.Stream` | `torch.Stream` |
+| `torch.cuda.Event` / `torch.xpu.Event` | `torch.Event` |
+| `with torch.cuda.stream(s):` | `with torch.Stream(s):` |
+
+Exception: inside dynamo-traced test cases, keep the device-module stream
+APIs as-is — dynamo treats them as distinct operations from the unified
+types, so both forms need separate testing. See
+`reference/modules/graph/pitfalls.md`.
+
 ## Lookup Rules
 
 ### To classify an API call:

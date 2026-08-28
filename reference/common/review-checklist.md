@@ -159,6 +159,7 @@ stop matching, turning expected failures into unexpected failures.
 | `torch/testing/_internal/common_methods_invocations.py` | `DecorateInfo(unittest.skip("..."), 'TestCommon', 'test_complex_half_reference_testing')` | Search for `'OldClassName'` string in `DecorateInfo(...)` constructor calls |
 | `.ci/pytorch/test_exclude_list.py` | Test name in skip list | `grep -r "OldClassName\b" .ci/pytorch/` |
 | `.ci/pytorch/*-trunk.yml` | Test name in CI config | `grep -r "OldClassName\b" .ci/` |
+| `.pytorch-disabled-tests.json` (repo root) | Disabled/flaky test name mapping (`DISABLED_TESTS_FILE`) | `grep -n "OldClassName" .pytorch-disabled-tests.json` — a rename leaves stale entries that silently stop disabling the test |
 
 **How to fix:** For each stale reference, update the class name to match the
 new name. Verify which class actually owns each test — when a class is split
@@ -268,7 +269,7 @@ dependency level (e.g., a test using only CPU ops should not be in a
 | No test logic unintentionally modified | Flag tests that appear incomplete or have empty bodies |
 | No duplicate test bodies across device-specific classes | If identical test bodies appear across S3 classes, they belong in the S2 shared class |
 | No device-specific artifacts in S2 classes | Scan for `_cuda` suffix in test method names, internal variable names like `cuda_out`, module-level helpers with `if device_type == "<backend>"` branches — clean these when the test is in an S2 class |
-| No test lost in the change | Diff-based review: verify every original test method is accounted for (count `def test_` in old vs new). A test "lost" in refactoring is a regression. |
+| No test lost in the change | Diff-based review: verify every original test method is accounted for (count `def test_` in old vs new), and each removed test re-appeared in the correct target class — deleting without migrating is the common failure mode. A test "lost" in refactoring is a regression. |
 
 ## 7. Common Pitfalls
 
@@ -292,6 +293,13 @@ dependency level (e.g., a test using only CPU ops should not be in a
 | Missing `hw_classification` class attribute | Every test class must have `hw_classification = HardwareClassification.XXX`. Missing attr causes test runner to skip or misroute tests. | Blocker |
 | Incorrect `hw_classification` value | Value must match the class mechanism: GENERIC for S1, ACCELERATOR for S2, CUDA/MPS/XPU for S3 per device, CPU for S1-with-`@ops`. A wrong value (e.g., GENERIC on an S2 class) breaks `--hw-classification` filtering. | Blocker |
 | `HardwareClassification` not imported | Must be imported from `torch.testing._internal.common_utils` and merged alphabetically into the existing import block. | Blocker |
+| `instantiate_device_type_tests` call changes the original device scope (dropped `only_for`, added `allow_xpu`/`allow_mps`/`except_for` without evidence) | Refactoring must preserve before/after behavior — keep the original device set unless the tests were verified on the new devices (standards: Refactoring Invariants) | Major |
+| Module-level `only_for` variable instead of a literal in the instantiate call | Inline the device list in the call; prefer `except_for` when excluding a minority of devices (standards: Refactoring Invariants) | Minor |
+| Backend capability gap marked with xfail instead of skip | Unsupported dtype on a backend is a known gap — use `@dtypesIf<Device>` / `@skip<Device>If`, not xfail (standards: Refactoring Invariants) | Minor |
+| S2 class restricted to accelerators at class level while the tests would run on CPU | A `TestFooDevice` class includes CPU; `@onlyAccelerator` is per-test, only for tests that cannot run on CPU (standards: Refactoring Invariants) | Major |
+| `DeviceType[dev]`-style lookup to map a device string to a type | Breaks for PrivateUse1-based backends (`DeviceType.<registered_name>` vs `DeviceType.PrivateUse1`). Compare `str(device_type)` values instead | Major |
+| Multiple cases executed in a plain loop inside one test | One failure hides the rest — convert to `@parametrize` or `subTest` when touching the test | Minor |
+| Platform-helper booleans (`flex_attention_supported_platform` and similar) used to skip instead of explicit per-device skips | Helpers silently skip PrivateUse1-based backends they do not know and hide which devices are skipped — prefer explicit `@skip<Device>If` conditions (standards: Refactoring Invariants) | Major |
 
 ## 8. Decorator Ordering
 
@@ -326,12 +334,27 @@ category.
 | Check | How to Verify |
 |-------|---------------|
 | Import present | `grep "HardwareClassification" <file>` — must be imported from `torch.testing._internal.common_utils` |
-| Every class tagged | `grep "hw_classification" <file>` — count must equal number of TestCase subclasses |
+| Every class tagged | `grep "hw_classification" <file>` — count must equal number of TestCase subclasses, including intermediate and inherited classes that define `test_*` methods |
 | Value matches strategy | Cross-reference each class's mechanism (instantiate call + device params) against the table in the standards |
 | Import merged alphabetically | `HardwareClassification` must appear in the existing `common_utils` import block in alphabetical order |
 
 **Severity**: Blocker — missing or incorrect `hw_classification` causes the
 test runner to skip or misroute tests.
+
+## 10. PR Hygiene (diff-based reviews)
+
+When the input is a PR or diff, also report process-level findings (all
+Minor):
+
+- **Oversized refactor.** A single PR touching many classes is hard to
+  review and slow to merge. Suggest splitting — additions and deletions as
+  separate commits, or one file per PR.
+- **Mixed unrelated changes.** Format-only edits, pytest parametrize
+  rewrites, or other files bundled into a decoupling PR. Suggest splitting
+  them out so the refactor itself stays reviewable.
+- **Unused leftover code.** Helpers, variables, or decorators that became
+  dead after the refactor (`@onlyCUDA` imports, module-level device
+  globals, unused functions).
 
 ## Review Output Format
 
@@ -340,23 +363,12 @@ Structure your review as follows:
 ```
 ## Review: <test file path>
 
-### Routing & Knowledge Report
-- Target: <file path>
-- Review mode: <whole-file | diff-based>
-- Module: <core | distributed | graph> (detection: <directory match | test-list.txt match | default>)
-- Knowledge loaded:
-  - reference/common/test-classification-standards.md
-  - reference/common/device-api-categories.yaml
-  - reference/common/api-classification-guide.md
-  - reference/common/backend-differences.md
-  - reference/common/review-checklist.md
-  - reference/modules/<module>/README.md
-  - reference/modules/<module>/workflow.md
-  - reference/modules/<module>/pitfalls.md
-- Workflow phases: assess, analyze, review, report
-
 ### Summary
+- Target: <file path | PR ref>
 - Mode: whole-file / diff-based
+- Module: <core | distributed | graph> (detection: <directory match | test-list.txt match | default>)
+- Knowledge loaded: reference/common/ (6 files) + reference/modules/<module>/{README.md, workflow.md, pitfalls.md}
+- Workflow phases: assess, analyze, review, report
 - File(s) reviewed: 1
 - Classification: correct / N issues found
 - Naming: correct / N issues found
@@ -366,17 +378,18 @@ Structure your review as follows:
 ### Findings
 
 - **Blockers (must fix)**
-  - [ ] **<file:line>**: <issue description>
-    - Fix: <suggested fix>
+    - [ ] **<file:line>**: <issue description>
+        - Fix: <suggested fix>
 - **Major (should fix)**
-  - [ ] **<file:line>**: <issue description>
+    - [ ] **<file:line>**: <issue description>
 - **Minor (nice to have)**
-  - [ ] **<file:line>**: <issue description>
+    - [ ] **<file:line>**: <issue description>
 
 ### Verified Correct
 - <list of things that are correct per the standards>
 ```
 
-The Routing & Knowledge Report heads the final output so the whole review
-is self-contained — the mid-process copy emitted before Phase 0 is for
-early routing evaluation; the final one is part of the deliverable.
+The routing facts (module, detection, knowledge loaded, workflow phases)
+are condensed into the Summary so the final report stays self-contained.
+The full Routing & Knowledge Report is emitted once at the start of the
+run (SKILL.md step 4) and is not repeated here.
